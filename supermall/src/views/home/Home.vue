@@ -47,7 +47,7 @@
     getHomeMultidata,
     getHomeGoods,
   } from "network/home"
-  import {debounce} from "common/utils"
+  import {itemListenerMixin} from "@/common/mixin";
 
 
   export default {
@@ -62,6 +62,7 @@
       Scroll,
       BackTop,
     },
+    mixins: [itemListenerMixin],
     data() {
       return {
         banners: [],
@@ -88,7 +89,11 @@
       this.$refs.scroll.refresh()
     },
     deactivated() {
+      //1.保存Y值
       this.saveY = this.$refs.scroll.getScrollY()
+
+      //2.取消全局事件的监听
+      this.$bus.$off('goodsItemImageLoad', this.itemImgListener)
     },
     //当组件创建完成后
     created() {
@@ -100,23 +105,6 @@
       this.getHomeGoods('sell')
     },
     mounted() {
-      //3.监听item中图片加载完成
-      /*
-      * 由于better-scroll计算整个可滚动高度是与图片加载同步，
-      * 因此会出现由于图片未加载完全而高度已经被计算，
-      * 从而导致不能完全滚动整个图片区域，
-      * 所以需要监听每张图片并同时重新计算可滚动高度即可
-      *
-      * 同时有关 $refs 的请求都拿到 mounted() 中来做
-      * */
-      const refresh = debounce(this.$refs.scroll.refresh, 500)
-      this.$bus.$on('goodsItemImageLoad', () => {
-        refresh()
-      })
-
-      //4.获取tabControl的offsetTop
-      // 所有的组件都有一个属性$el，用于获取组件中的元素
-      // console.log(this.$refs.tabControl.$el.offsetTop)
     },
     methods: {
       /*

@@ -9,6 +9,12 @@ export function getDetail(iid) {
   })
 }
 
+export function getRecommend() {
+  return request({
+    url: '/recommend'
+  })
+}
+
 //由于服务器传来的数据比较乱，因此通过定义一个类将需要的数据进行整合
 export class GoodsInfo {
   constructor(itemInfo, columns, services) {
@@ -36,6 +42,7 @@ export class Shop {
 
 export class GoodsParam {
   constructor(info, rule) {
+    //由于有些image可能没有值，因此需要添加一个判断
     this.image = info.images ? info.images[0] : ''
     this.infos = info.set
     this.sizes = rule.tables
