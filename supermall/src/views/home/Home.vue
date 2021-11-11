@@ -28,7 +28,7 @@
       如果想让组件被监听，
       需要在@click后面添加一个native
     -->
-    <back-top @click.native="backClick" v-show="isShowBackTop"></back-top>
+    <back-top @click.native="backTop" v-show="isShowBackTop"></back-top>
   </div>
 </template>
 
@@ -41,13 +41,13 @@
   import TabControl from "components/content/tabControl/TabControl"
   import GoodsList from "components/content/goods/GoodsList"
   import Scroll from "components/common/scroll/Scroll"
-  import BackTop from "components/content/backTop/BackTop";
 
   import {
     getHomeMultidata,
     getHomeGoods,
   } from "network/home"
-  import {itemListenerMixin} from "@/common/mixin";
+  import {backTopMixin, itemListenerMixin} from "@/common/mixin";
+  import {BACK_POSITION} from "@/common/const";
 
 
   export default {
@@ -60,9 +60,8 @@
       TabControl,
       GoodsList,
       Scroll,
-      BackTop,
     },
-    mixins: [itemListenerMixin],
+    mixins: [itemListenerMixin, backTopMixin],
     data() {
       return {
         banners: [],
@@ -73,7 +72,6 @@
           'sell': {page: 0, list: []},
         },
         currentType: 'pop',
-        isShowBackTop: false,
         tabOffsetTop: 0,
         isTabFixed: false,
         saveY: 0,
@@ -86,7 +84,7 @@
     },
     activated() {
       this.$refs.scroll.scrollTo(0, this.saveY, 0)
-      this.$refs.scroll.refresh()
+      this.refresh()
     },
     deactivated() {
       //1.保存Y值
@@ -126,14 +124,10 @@
         this.$refs.tabControl_1.currentIndex = index
         this.$refs.tabControl_2.currentIndex = index
       },
-      //2.返回顶部事件
-      backClick() {
-        this.$refs.scroll.scrollTo(0, 0, 500)
-      },
       //3.显示/隐藏 BackTop 按钮
       contentScroll(position) {
         //1.判断BackTop是否显示
-        this.isShowBackTop = (-position.y) > 1000
+        this.listenShowBackTop(position)
 
         //2.决定tabControl是否吸顶（position：fixed）
         this.isTabFixed = -(position.y) > this.tabOffsetTop

@@ -1,15 +1,20 @@
 <template>
   <div id="detail">
-    <detail-nav-bar class="detail-nav"></detail-nav-bar>
-    <scroll class="content" ref="scroll">
+    <detail-nav-bar class="detail-nav" @titleClick="titleClick" ref="nav"></detail-nav-bar>
+    <scroll class="content"
+            ref="scroll"
+            @scroll="contentScroll"
+            :probe-type="3">
       <detail-swiper :top-images="topImages"></detail-swiper>
       <detail-base-info :goods-detail="goodsDetail"></detail-base-info>
       <detail-shop-info :shop="shop"></detail-shop-info>
       <detail-goods-info :detail-info="detailInfo" @imageLoad="imageLoad"></detail-goods-info>
-      <detail-param-info :param-info="paramInfo"></detail-param-info>
-      <detail-comment-info :comment-info="commentInfo"></detail-comment-info>
-      <goods-list :goods="recommends"></goods-list>
+      <detail-param-info ref="params" :param-info="paramInfo"></detail-param-info>
+      <detail-comment-info ref="comment" :comment-info="commentInfo"></detail-comment-info>
+      <goods-list ref="recommend" :goods="recommends"></goods-list>
     </scroll>
+    <back-top @click.native="backTop" v-show="isShowBackTop"></back-top>
+    <detail-bottom-bar></detail-bottom-bar>
   </div>
 </template>
 
@@ -21,12 +26,14 @@
   import DetailGoodsInfo from "@/views/detail/childComps/DetailGoodsInfo";
   import DetailParamInfo from "@/views/detail/childComps/DetailParamInfo";
   import DetailCommentInfo from "@/views/detail/childComps/DetailCommentInfo";
+  import DetailBottomBar from "@/views/detail/childComps/DetailBottomBar";
 
   import Scroll from "@/components/common/scroll/Scroll";
   import GoodsList from "@/components/content/goods/GoodsList";
 
   import {getDetail, getRecommend, GoodsInfo, Shop, GoodsParam} from "@/network/detail";
-  import {itemListenerMixin} from "@/common/mixin";
+  import {itemListenerMixin, backTopMixin} from "@/common/mixin";
+  import {debounce} from "@/common/utils";
 
   export default {
     name: "Detail",
@@ -38,11 +45,12 @@
       DetailGoodsInfo,
       DetailParamInfo,
       DetailCommentInfo,
+      DetailBottomBar,
 
       Scroll,
       GoodsList,
     },
-    mixins: [itemListenerMixin],
+    mixins: [itemListenerMixin, backTopMixin],
     data() {
       return {
         iid: null,
@@ -54,6 +62,9 @@
         paramInfo: {},
         commentInfo: {},
         recommends: [],
+        themeTopYs: [],
+        getThemeTopY: null,
+        currentIndex: 0,
       }
     },
     created() {
@@ -83,20 +94,79 @@
         if (data.rate.cRate !== 0) {
           this.commentInfo = data.rate.list[0]
         }
+
+        //当DOM渲染完成后再回调该函数
+        //但不包含图片的高度
+        this.$nextTick(() => {
+          this.themeTopYs = []
+          this.themeTopYs.push(0)
+          this.themeTopYs.push(this.$refs.params.$el.offsetTop)
+          this.themeTopYs.push(this.$refs.comment.$el.offsetTop)
+          this.themeTopYs.push(this.$refs.recommend.$el.offsetTop)
+
+          console.log(this.themeTopYs)
+        })
       })
 
       //3.请求推荐数据
       getRecommend().then(res => {
         this.recommends = res.data.list
       })
+
+      //4.给getThemeTopY赋值(debounce进行防抖)
+      this.getThemeTopY = debounce(() => {
+        this.themeTopYs = []
+        this.themeTopYs.push(0)
+        this.themeTopYs.push(this.$refs.params.$el.offsetTop)
+        this.themeTopYs.push(this.$refs.comment.$el.offsetTop)
+        this.themeTopYs.push(this.$refs.recommend.$el.offsetTop)
+        this.themeTopYs.push(Number.MAX_VALUE)
+
+        console.log(this.themeTopYs)
+      }, 100)
     },
     methods: {
       imageLoad() {
-        this.$refs.scroll.refresh()
-      }
-    },
-    mounted() {
+        //在所有图片加载完成后刷新页面高度(该refresh在mixin中已经使用过防抖函数)
+        this.refresh()
 
+        //在所有图片加载完成后给getThemeTopY赋值
+        this.getThemeTopY()
+      },
+      //顶部导航栏点击事件
+      titleClick(index) {
+        this.$refs.scroll.scrollTo(0, -this.themeTopYs[index] + 44, 500)
+      },
+      contentScroll(position) {
+        //1.获取y值
+        const positionY = -position.y
+
+        //2.与ThemeY中的值进行对比
+        let length = this.themeTopYs.length
+        for (let i = 0; i < length - 1; i++) {
+          if (this.currentIndex !== i && (positionY >= this.themeTopYs[i] -44 && positionY < this.themeTopYs[i+1])) {
+            this.currentIndex = i
+            this.$refs.nav.currentIndex = this.currentIndex
+          }
+
+          /*if(this.currentIndex !== i) {
+            if(i < length - 1) {
+              if (positionY >= this.themeTopYs[i] -44 && positionY < this.themeTopYs[i+1]) {
+                this.currentIndex = i
+                this.$refs.nav.currentIndex = this.currentIndex
+              }
+            }else {
+              if (positionY >= this.themeTopYs[i] -44) {
+                this.currentIndex = i
+                this.$refs.nav.currentIndex = this.currentIndex
+              }
+            }
+          }*/
+        }
+
+        this.listenShowBackTop(position)
+
+      }
     },
     destroyed() {
       this.$bus.$off('goodsItemImageLoad', this.itemImgListener)
@@ -120,6 +190,6 @@
   }
 
   .content {
-    height: calc(100% - 44px);
+    height: calc(100% - 44px - 58px);
   }
 </style>
