@@ -13,8 +13,9 @@
       <detail-comment-info ref="comment" :comment-info="commentInfo"></detail-comment-info>
       <goods-list ref="recommend" :goods="recommends"></goods-list>
     </scroll>
+    <detail-bottom-bar @addCart="addToCart"></detail-bottom-bar>
+
     <back-top @click.native="backTop" v-show="isShowBackTop"></back-top>
-    <detail-bottom-bar></detail-bottom-bar>
   </div>
 </template>
 
@@ -34,6 +35,8 @@
   import {getDetail, getRecommend, GoodsInfo, Shop, GoodsParam} from "@/network/detail";
   import {itemListenerMixin, backTopMixin} from "@/common/mixin";
   import {debounce} from "@/common/utils";
+
+  import {mapActions} from 'vuex'
 
   export default {
     name: "Detail",
@@ -104,7 +107,6 @@
           this.themeTopYs.push(this.$refs.comment.$el.offsetTop)
           this.themeTopYs.push(this.$refs.recommend.$el.offsetTop)
 
-          console.log(this.themeTopYs)
         })
       })
 
@@ -122,10 +124,12 @@
         this.themeTopYs.push(this.$refs.recommend.$el.offsetTop)
         this.themeTopYs.push(Number.MAX_VALUE)
 
-        console.log(this.themeTopYs)
       }, 100)
     },
     methods: {
+      ...mapActions({
+        addCart: 'addCart',
+      }),
       imageLoad() {
         //在所有图片加载完成后刷新页面高度(该refresh在mixin中已经使用过防抖函数)
         this.refresh()
@@ -166,6 +170,21 @@
 
         this.listenShowBackTop(position)
 
+      },
+      addToCart() {
+        //1.获取购物车需要展示的信息
+        const product = {}
+        product.image = this.topImages[0]
+        product.title = this.goodsDetail.title
+        product.desc = this.goodsDetail.desc
+        product.price = this.goodsDetail.realPrice
+        product.iid = this.iid
+
+        //2.将商品添加到购物车中
+        // this.$store.commit('addCart', product)
+        this.addCart(product).then(res => {
+          this.$toast.show(res, 1500)
+        })
       }
     },
     destroyed() {
